@@ -12,7 +12,7 @@ st.set_page_config(
 )
 
 st.title("🌍 대륙별 지진 시각화 대시보드")
-st.markdown("USGS(미국 지질조사국) API 데이터를 활용하여 대륙별 지진 데이터를 선택하여 시각화합니다.")
+st.markdown("USGS API 데이터를 활용하여 대륙별 지진 데이터를 선택하여 시각화합니다.")
 
 # 2. 최근 24시간 실시간 지진 데이터 로드 함수 (캐싱 5분)
 @st.cache_data(ttl=300)
@@ -102,16 +102,21 @@ if not recent_df.empty:
     strong_quakes = recent_df[recent_df['mag'] >= 5.0]
     if not strong_quakes.empty:
         top_quake = strong_quakes.sort_values(by='mag', ascending=False).iloc[0]
-        st.error(f"🚨 **실시간 강진 알림 (최근 24시간 내 규모 5.0 이상):** **M {top_quake['mag']:.1f}** 지진 발생! 위치: `{top_quake['place']}`")
+        alert_msg = f"🚨 **실시간 강진 알림:** M {top_quake['mag']:.1f} 지진! 위치: {top_quake['place']}"
+        st.error(alert_msg)
     else:
-        st.success("✅ 최근 24시간 동안 규모 5.0 이상의 대형 강진은 보고되지 않았습니다.")
+        st.success("✅ 최근 24시간 동안 규모 5.0 이상의 대형 강진은 없습니다.")
 
 st.markdown("---")
 
 # 5. 사이드바 - 조건 선택
 st.sidebar.header("🔍 데이터 필터 설정")
 
-continents = ["전세계", "아시아 (Asia)", "유럽 (Europe)", "아프리카 (Africa)", "오세아니아 (Oceania)", "북아메리카 (North America)", "남아메리카 (South America)"]
+continents = [
+    "전세계", "아시아 (Asia)", "유럽 (Europe)", 
+    "아프리카 (Africa)", "오세아니아 (Oceania)", 
+    "북아메리카 (North America)", "남아메리카 (South America)"
+]
 selected_continent = st.sidebar.selectbox("🗺️ 시각화할 대륙 선택", continents)
 
 current_year = datetime.now().year
@@ -120,29 +125,47 @@ selected_year = st.sidebar.selectbox(
     range(current_year, current_year - 10, -1)
 )
 
-min_mag = st.sidebar.slider("📉 최소 지진 규모 (Magnitude)", 2.5, 9.0, 4.0, step=0.1)
+min_mag = st.sidebar.slider("📉 최소 지진 규모", 2.5, 9.0, 4.0, step=0.1)
 
 # 6. 연도별 데이터 로딩 (3단계 로딩 효과)
-progress_text = f"🔄 {selected_year}년 데이터를 USGS에서 수집하는 중입니다. 잠시만 기다려주세요..."
+progress_text = f"🔄 {selected_year}년 데이터를 수집 중입니다..."
 with st.spinner(progress_text):
     time.sleep(0.3)
     df = load_earthquake_data(selected_year, selected_year)
     
-    st.toast("데이터 다운로드 완료! 선택한 대륙 영역으로 필터링 중...", icon="📊")
+    st.toast("데이터 다운로드 완료! 필터링 중...", icon="📊")
     filtered_df = filter_by_continent(df, selected_continent)
     if not filtered_df.empty:
         filtered_df = filtered_df[filtered_df['mag'] >= min_mag]
     
-    st.toast("지도를 생성하고 점을 찍는 중입니다...", icon="📍")
+    st.toast("지도를 생성하는 중입니다...", icon="📍")
     time.sleep(0.2)
 
-# 7. 결과 출력
+# 7. 결과 출력 (줄바꿈 에러 방지를 위해 문자열 결합 수정)
 if not filtered_df.empty:
     st.subheader(f"📊 {selected_year}년 {selected_continent} 지진 통계")
     col1, col2, col3 = st.columns(3)
+    
     with col1:
         st.metric("해당 대륙 발생 건수", f"{len(filtered_df)} 건")
+        
     with col2:
-        st.metric("최대 지진 규모", f"M {filtered_df['mag'].max():.1f}")
+        max_mag_val = filtered_df['mag'].max()
+        st.metric("최대 지진 규모", f"M {max_mag_val:.1f}")
+        
     with col3:
-        st.metric("평균 지진 깊이", f"{filtered_df
+        mean_depth_val = filtered_df['depth'].mean()
+        st.metric("평균 지진 깊이", f"{mean_depth_val:.1f} km")
+        
+    st.subheader(f"📍 지진 발생 위치 지도 (규모 {min_mag} 이상)")
+    st.map(filtered_df[['latitude', 'longitude']])
+    
+    st.subheader("📋 상세 데이터 리스트")
+    display_df = filtered_df[[
+        'time', 'mag', 'place', 'depth', 'latitude', 'longitude'
+    ]].sort_values(by='time', ascending=False)
+    
+    st.dataframe(display_df, use_container_width=True)
+else:
+    info_msg = f"💡 {selected_year}년 {selected_continent} 지역에 조건에 맞는 데이터가 없습니다."
+    st.info(info_msg)

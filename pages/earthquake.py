@@ -10,7 +10,8 @@ st.set_page_config(
     page_icon="🌍",
     layout="wide"
 )
-
+e'], unit='ms'),
+                    "mag": props['mag'],
 st.title("🌍 대륙별 지진 시각화 대시보드")
 st.markdown("USGS(미국 지질조사국) API 데이터를 활용하여 대륙별 지진 데이터를 선택하여 시각화합니다.")
 
@@ -133,4 +134,4 @@ with st.spinner(progress_text):
     
     # 2단계: 대륙 필터링 연산 진행 상황 표시
     st.toast("데이터 다운로드 완료! 선택한 대륙 영역으로 필터링 중...", icon="📊")
-    filtered_df = filter_by_continent(df, selected
+    filtered_df = filter_by_continent(df, selected)

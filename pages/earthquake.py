@@ -26,7 +26,7 @@ def load_earthquake_data(start_year, end_year):
     }
     
     response = requests.get(url, params=params)
-    if response.status_value == 200:
+    if response.status_code == 200:
         data = response.json()
         
         # GeoJSON 데이터를 판다스 데이터프레임으로 변환
